@@ -222,9 +222,11 @@ class AutoCollectPerformance {
         var samples = this._eventLoopSamples;
         this._eventLoopSamples = [];
 
-        var avgNs = samples.reduce((total, current) => total + current) / samples.length;
-        var avgMs = Math.round(avgNs / 1e6);
-        this._client.trackMetric("Node.js Event Loop Scheduling Delay", avgMs);
+        if (samples.length > 0) {
+            var avgNs = samples.reduce((total, current) => total + current) / samples.length;
+            var avgMs = Math.round(avgNs / 1e6);
+            this._client.trackMetric("Node.js Event Loop Scheduling Delay", avgMs);
+        }
     }
 
     private _measureEventLoop() {
