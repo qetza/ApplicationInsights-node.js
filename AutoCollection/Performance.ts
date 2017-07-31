@@ -29,6 +29,8 @@ class AutoCollectPerformance {
     private _isInitialized: boolean;
     private _lastCpus: { model: string; speed: number; times: { user: number; nice: number; sys: number; idle: number; irq: number; }; }[];
     private _lastRequests: { totalRequestCount: number; totalFailedRequestCount: number; time: number };
+    private _eventLoopSamples: number[] = [];
+    private _isMeasuringEventLoop: boolean;
 
     constructor(client: Client) {
         if(!!AutoCollectPerformance.INSTANCE) {
@@ -37,6 +39,7 @@ class AutoCollectPerformance {
 
         AutoCollectPerformance.INSTANCE = this;
         this._isInitialized = false;
+        this._isMeasuringEventLoop = false;
         this._client = client;
     }
 
@@ -109,6 +112,7 @@ class AutoCollectPerformance {
         this._trackCpu();
         this._trackMemory();
         this._trackNetwork();
+        this._trackEventLoop();
     }
 
     private _trackCpu() {
@@ -208,6 +212,36 @@ class AutoCollectPerformance {
         }
 
         this._lastRequests = requests;
+    }
+
+    private _trackEventLoop() {
+        if (!this._isMeasuringEventLoop) {
+            this._isMeasuringEventLoop = true;
+            this._measureEventLoop();
+        }
+        var samples = this._eventLoopSamples;
+        this._eventLoopSamples = [];
+
+        var avgNs = samples.reduce((total, current) => total + current) / samples.length;
+        var avgMs = avgNs / 1000000;
+        this._client.trackMetric("Node.js Event Loop Scheduling Delay", avgMs);
+    }
+
+    private _measureEventLoop() {
+        if (!this._isEnabled) {
+            // For efficiency, this is set to true in the less-frequently called _trackEventLoop
+            this._isMeasuringEventLoop = false;
+            return;
+        }
+
+        var startTime = process.hrtime();
+        setImmediate(() => {
+            var elapsed = process.hrtime(startTime);
+            var elapsedMs = elapsed[0] * 1e9 + elapsed[1];
+            
+            this._eventLoopSamples.push(elapsedMs);
+            this._measureEventLoop();
+        });
     }
 
     public dispose() {
