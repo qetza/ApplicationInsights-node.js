@@ -223,7 +223,7 @@ class AutoCollectPerformance {
         this._eventLoopSamples = [];
 
         var avgNs = samples.reduce((total, current) => total + current) / samples.length;
-        var avgMs = avgNs / 1000000;
+        var avgMs = Math.round(avgNs / 1e6);
         this._client.trackMetric("Node.js Event Loop Scheduling Delay", avgMs);
     }
 
@@ -240,7 +240,7 @@ class AutoCollectPerformance {
             var elapsedMs = elapsed[0] * 1e9 + elapsed[1];
             
             this._eventLoopSamples.push(elapsedMs);
-            this._measureEventLoop();
+            setInterval(() => this._measureEventLoop(), 100);
         });
     }
 
