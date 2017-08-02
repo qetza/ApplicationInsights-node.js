@@ -29,7 +29,8 @@ class AutoCollectPerformance {
     private _isInitialized: boolean;
     private _lastCpus: { model: string; speed: number; times: { user: number; nice: number; sys: number; idle: number; irq: number; }; }[];
     private _lastRequests: { totalRequestCount: number; totalFailedRequestCount: number; time: number };
-    private _eventLoopSamples: number[] = [];
+    private _eventLoopSampleSum: number = 0;
+    private _eventLoopSampleCount: number = 0;
     private _isMeasuringEventLoop: boolean;
 
     constructor(client: Client) {
@@ -219,11 +220,13 @@ class AutoCollectPerformance {
             this._isMeasuringEventLoop = true;
             this._measureEventLoop();
         }
-        var samples = this._eventLoopSamples;
-        this._eventLoopSamples = [];
+        var samples = this._eventLoopSampleSum;
+        var sampleCount = this._eventLoopSampleCount;
+        this._eventLoopSampleSum = 0;
+        this._eventLoopSampleCount = 0;
 
-        if (samples.length > 0) {
-            var avgNs = samples.reduce((total, current) => total + current) / samples.length;
+        if (sampleCount > 0) {
+            var avgNs = samples / sampleCount;
             var avgMs = Math.round(avgNs / 1e6);
             this._client.trackMetric("Node.js Event Loop Scheduling Delay", avgMs);
         }
@@ -241,8 +244,9 @@ class AutoCollectPerformance {
             var elapsed = process.hrtime(startTime);
             var elapsedMs = elapsed[0] * 1e9 + elapsed[1];
             
-            this._eventLoopSamples.push(elapsedMs);
-            setInterval(() => this._measureEventLoop(), 100);
+            this._eventLoopSampleSum += elapsedMs;
+            this._eventLoopSampleCount++;
+            setTimeout(() => this._measureEventLoop(), 100);
         });
     }
 
