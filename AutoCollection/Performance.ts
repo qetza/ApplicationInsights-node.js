@@ -240,14 +240,14 @@ class AutoCollectPerformance {
         }
 
         var startTime = process.hrtime();
-        setImmediate(() => {
+        setTimeout(() => {
             var elapsed = process.hrtime(startTime);
             var elapsedMs = elapsed[0] * 1e9 + elapsed[1];
             
             this._eventLoopSampleSum += elapsedMs;
             this._eventLoopSampleCount++;
-            setTimeout(() => this._measureEventLoop(), 100);
-        });
+            setTimeout(() => this._measureEventLoop(), 0);
+        }, 0);
     }
 
     public dispose() {
