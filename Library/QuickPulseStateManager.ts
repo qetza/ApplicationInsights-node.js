@@ -19,8 +19,8 @@ class QuickPulseStateManager {
     private static FALLBACK_INTERVAL = 60000;
     private static PING_INTERVAL = 5000;
     private static POST_INTERVAL = 1000;
+    private static _isCollectingData: boolean = false;
 
-    private _isCollectingData: boolean = false;
     private _sender: QuickPulseSender;
     private _isEnabled: boolean;
     private _lastSuccessTime: number = Date.now();
@@ -124,18 +124,18 @@ class QuickPulseStateManager {
         this._resetQuickPulseBuffer();
 
         // Send it to QuickPulseService, if collecting
-        if (this._isCollectingData) {
+        if (QuickPulseStateManager._isCollectingData) {
             this._post(envelope);
         } else {
             this._ping(envelope);
         }
 
-        let currentTimeout = this._isCollectingData ? QuickPulseStateManager.POST_INTERVAL : QuickPulseStateManager.PING_INTERVAL;
-        if (this._isCollectingData && Date.now() - this._lastSuccessTime >= QuickPulseStateManager.MAX_POST_WAIT_TIME && !this._lastSendSucceeded) {
+        let currentTimeout = QuickPulseStateManager._isCollectingData ? QuickPulseStateManager.POST_INTERVAL : QuickPulseStateManager.PING_INTERVAL;
+        if (QuickPulseStateManager._isCollectingData && Date.now() - this._lastSuccessTime >= QuickPulseStateManager.MAX_POST_WAIT_TIME && !this._lastSendSucceeded) {
             // Haven't posted successfully in 20 seconds, so wait 60 seconds and ping
-            this._isCollectingData = false;
+            QuickPulseStateManager._isCollectingData = false;
             currentTimeout = QuickPulseStateManager.FALLBACK_INTERVAL;
-        } else if (!this._isCollectingData && Date.now() - this._lastSuccessTime >= QuickPulseStateManager.MAX_PING_WAIT_TIME && !this._lastSendSucceeded) {
+        } else if (!QuickPulseStateManager._isCollectingData && Date.now() - this._lastSuccessTime >= QuickPulseStateManager.MAX_PING_WAIT_TIME && !this._lastSendSucceeded) {
             // Haven't pinged successfully in 60 seconds, so wait another 60 seconds
             currentTimeout = QuickPulseStateManager.FALLBACK_INTERVAL;
         }
@@ -153,11 +153,11 @@ class QuickPulseStateManager {
     }
 
     private _quickPulseDone(shouldPOST: boolean, res?: http.IncomingMessage): void {
-        if (this._isCollectingData !== shouldPOST) {
+        if (QuickPulseStateManager._isCollectingData !== shouldPOST) {
             Logging.info("Live Metrics sending data", shouldPOST);
             this.enableCollectors(shouldPOST);
         }
-        this._isCollectingData = shouldPOST;
+        QuickPulseStateManager._isCollectingData = shouldPOST;
 
         if (res && res.statusCode < 300 && res.statusCode >= 200) {
             this._lastSuccessTime = Date.now();
