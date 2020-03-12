@@ -117,6 +117,11 @@ class CorrelationIdManager {
         }
     }
 
+    public static clearCorrelationIdQueries() {
+        CorrelationIdManager.pendingLookups = {}
+        CorrelationIdManager.numConsecutiveFailureLookups = {}
+    }
+
     /**
      * Generate a request Id according to https://github.com/lmolkova/correlation/blob/master/hierarchical_request_id.md
      * @param parentId

@@ -356,4 +356,5 @@ export function dispose() {
         _isSendingLiveMetrics = false;
         liveMetricsClient = undefined;
     }
+    CorrelationIdManager.clearCorrelationIdQueries();
 }
