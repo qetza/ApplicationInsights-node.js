@@ -41,6 +41,8 @@ class Config {
     public samplingPercentage: number;
     /** The time to wait before retrying to retrieve the id for cross-component correlation (Default 30000) */
     public correlationIdRetryIntervalMs: number;
+    /** The maximum number of retrying to retrieve the id for cross-component correlation (Default 5) */
+    public correlationIdMaxRetriesOnFailure: number;
     /** A list of domains to exclude from cross-component header injection */
     public correlationHeaderExcludedDomains: string[];
     /** A proxy server for SDK HTTP traffic (Optional, Default pulled from `http_proxy` environment variable) */
@@ -75,6 +77,7 @@ class Config {
         this.disableAppInsights = false;
         this.samplingPercentage = 100;
         this.correlationIdRetryIntervalMs = 30 * 1000;
+        this.correlationIdMaxRetriesOnFailure = 5;
         this.correlationHeaderExcludedDomains = [
             "*.core.windows.net",
             "*.core.chinacloudapi.cn",

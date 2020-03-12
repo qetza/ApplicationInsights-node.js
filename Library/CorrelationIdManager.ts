@@ -16,6 +16,7 @@ class CorrelationIdManager {
     // as well as a cache of completed lookups so future requests can be resolved immediately.
     private static pendingLookups: {[key: string]: Function[]} = {};
     private static completedLookups: {[key: string]: string} = {};
+    private static numConsecutiveFailureLookups: {[key: string]: number} = {};
 
     private static requestIdMaxLength = 1024;
     private static currentRootId = Util.randomu32();
@@ -35,6 +36,7 @@ class CorrelationIdManager {
         }
 
         CorrelationIdManager.pendingLookups[appIdUrlString] = [callback];
+        CorrelationIdManager.numConsecutiveFailureLookups[appIdUrlString] = 0;
 
         const fetchAppId = () => {
             if (!CorrelationIdManager.pendingLookups[appIdUrlString]) {
@@ -66,14 +68,29 @@ class CorrelationIdManager {
                             CorrelationIdManager.pendingLookups[appIdUrlString].forEach((cb) => cb(result));
                         }
                         delete CorrelationIdManager.pendingLookups[appIdUrlString];
+                        delete CorrelationIdManager.numConsecutiveFailureLookups[appIdUrlString];
                     });
                 } else if (res.statusCode >= 400 && res.statusCode < 500) {
                     // Not found, probably a bad key. Do not try again.
                     CorrelationIdManager.completedLookups[appIdUrlString] = undefined;
                     delete CorrelationIdManager.pendingLookups[appIdUrlString];
+                    delete CorrelationIdManager.numConsecutiveFailureLookups[appIdUrlString];
                 } else {
-                    // Retry after timeout.
-                    setTimeout(fetchAppId, config.correlationIdRetryIntervalMs);
+                    ++CorrelationIdManager.numConsecutiveFailureLookups[appIdUrlString];
+
+                    if (config.correlationIdMaxRetriesOnFailure > CorrelationIdManager.numConsecutiveFailureLookups[appIdUrlString])
+                    {
+                        // Retry after timeout.
+                        setTimeout(fetchAppId, config.correlationIdRetryIntervalMs);
+                    }
+                    else
+                    {
+                        // Reached max retries. Do not try again.
+                        Logging.warn(CorrelationIdManager.TAG, 'Reached maximum number of retries.', appIdUrlString);
+
+                        delete CorrelationIdManager.pendingLookups[appIdUrlString];
+                        delete CorrelationIdManager.numConsecutiveFailureLookups[appIdUrlString];
+                    }
                 }
             });
             if (req) {
@@ -95,6 +112,7 @@ class CorrelationIdManager {
             CorrelationIdManager.pendingLookups[appIdUrlString] = pendingLookups.filter((cb) => cb != callback);
             if (CorrelationIdManager.pendingLookups[appIdUrlString].length == 0) {
                 delete CorrelationIdManager.pendingLookups[appIdUrlString];
+                delete CorrelationIdManager.numConsecutiveFailureLookups[appIdUrlString];
             }
         }
     }
